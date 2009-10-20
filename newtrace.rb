@@ -28,7 +28,7 @@ if ARGV.length < 1 or ARGV.index('-h')
 end
 
 unless Process.uid == 0
-  puts 'Must run as root.'
+  puts 'newtrace must be run as root user.'
   exit
 end
 
