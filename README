@@ -1,0 +1,35 @@
+===   Summary   ===
+Newtrace is a traceroute program written in Ruby. The extra feature of that
+utility is displaying all network interfaces of each intermediate router.
+
+===    Usage    ===
+You have to run newtrace as a superuser, because it is sending ICMP packets.
+Typical usage:
+# ./newtrace.rb -n google.com
+
+You can have some help typing:
+# ./newtrace.rb -h
+
+=== Description ===
+For example:
+
+/----\IF0  IF1a/-------\IF1b    IF2a/-------\IF2b   IF3/-----------\
+|user|---------|Router1|------------|Router2|----------|destination|
+\----/         \-------/            \-------/          \-----------/
+TTL:               1                    2                    3
+
+Standard traceroute command displays only IF1a, IF2a and IF3 interfaces.
+Newtrace is trying to guess second interface IP address, for example IF1b.
+
+We have three informations: we know IF2a IP addres, we know that IF1b and IF2a
+are in the same subnetwork and that IF1b is on Router1. Because subnets between
+routers are often small (eg. with mask /30 or /29), it's possible to check every
+IP address in given subnetwork. Newtrace is checking these IP sending ICMP
+packets with small TTL (eg. 1 when looking for IF1b). When some IP replies with
+'echo response' then we know that it's the one from Router1 and it's IF1b.
+ 
+===   Author    ===
+Tomasz Rekawek
+
+mail: newton@martel.pl
+blog: http://newton.net.pl
