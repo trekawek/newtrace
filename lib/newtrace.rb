@@ -9,11 +9,7 @@ class Newtrace
     else
       @ip = Ip.new(host)
     end
-    @options = {}
-    @options[:min_mask] = 28
-    @options[:timeout] = 500
-    @options[:retries] = 3
-    @options.merge!(options)
+    @options = options
   end
 
   def each_router print = false
