@@ -40,6 +40,8 @@ class << ICMPPing
       type = nil
       rhost = nil
       times = []
+      recv_ttl = nil
+      ident = nil
       0.upto(retries-1) do
         _start = Time.now
         s.send dat, 0, hp.pack("v2a*N2")
@@ -51,10 +53,12 @@ class << ICMPPing
           resp = icmpdat.unpack("C2n3N")
           type = resp[0]
           type = ICMP_TYPES[resp[0]] if ICMP_TYPES[resp[0]]
+          ident = rdat[0][4, 2].unpack('n')[0]
+          recv_ttl = rdat[0][8]
           times << (_stop - _start) * 1000
         end
       end
-      return :type => type, :host => rhost, :times => times
+      return :type => type, :host => rhost, :times => times, :ident => ident, :ttl => recv_ttl
     rescue TimeoutError
       return {}
     end

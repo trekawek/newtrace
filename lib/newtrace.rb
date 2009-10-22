@@ -48,7 +48,7 @@ class Newtrace
       next if !res2 or res2.length == 0
       break if res2[:type] == :echo_reply # final host
 
-      sec_if = find_second_interface(Ip.from_raw(res2[:host]), ttl)
+      sec_if = find_second_interface(Ip.from_raw(res2[:host]), Ip.from_raw(res[:host]), ttl)
       break
     end
     pair = {:from => Ip.new, :to => Ip.new, :finished => finished}
@@ -63,17 +63,38 @@ class Newtrace
   end
 
   private
-  def find_second_interface ip, ttl
+  def find_second_interface same_subnet_ip, same_router_ip, ttl
     tested = []
     30.downto(@options[:min_mask]) do |bit_mask|
       mask = Mask.new(bit_mask)
-      mask.each_ip(ip) do |i|
+      mask.each_ip(same_subnet_ip) do |i|
         next if tested.index(i)
         res = ICMPPing.ping(i, ttl, @options[:timeout], 1)
-        return i if res[:type] == :echo_reply
         tested << i
+        next if res[:type] != :echo_reply
+        next if is_closer_than_n ttl, i
+        next if @options[:ttl_compare] and !compare_ttl same_router_ip, i
+        next if @options[:ident_compare] and !compare_ident same_router_ip, i
+        return i
       end
     end
     Ip.new
+  end
+
+  def is_closer_than_n n, ip
+    res = ICMPPing.ping(ip, n-1, @options[:timeout], 1)
+    res and res[:type] == :echo_reply
+  end
+
+  def compare_ttl ip1, ip2
+    res1 = ICMPPing.ping(ip1, 64, @options[:timeout], 1)
+    res2 = ICMPPing.ping(ip2, 64, @options[:timeout], 1)
+    res1[:ttl] == res2[:ttl]
+  end
+
+  def compare_ident ip1, ip2
+    res1 = ICMPPing.ping(ip1, 64, @options[:timeout], 1)
+    res2 = ICMPPing.ping(ip2, 64, @options[:timeout], 1)
+    (res1[:ident] - res2[:ident]).abs < 10
   end
 end

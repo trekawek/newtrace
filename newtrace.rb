@@ -18,6 +18,8 @@ def show_usage
   puts "  -t TIMEOUT  Set timeout in ms (default: #{@options[:timeout]})."
   puts "  -m MASK     Set minimal mask for outgoing interface scanning (default: #{@options[:min_mask]})."
   puts "  -r RETRIES  How many ICMP packets send (default: #{@options[:retries]}."
+  puts "  -c          Do not use TTL comparing."
+  puts "  -i          Do not use identifier field comparing."
   puts "Arguments:"
   puts "  host        The host to traceroute to."
   exit
@@ -37,7 +39,10 @@ end
 @options = { :timeout => 400,
              :min_mask => 28,
              :retries => 3,
-             :resolv => true}
+             :resolv => true,
+             :ident_compare => true,
+             :ttl_compare => true
+           }
 
 # parameters with value
 {:timeout => '-t', :min_mask => '-m', :retries => '-r'}.each do |n, v|
@@ -45,7 +50,7 @@ end
 end
 
 # parameters without value
-{:resolv => '!-n', :help => '-h'}.each do |n, v|
+{:resolv => '!-n', :help => '-h', :ident_compare => '!-i', :ttl_compare => '!-c'}.each do |n, v|
   if v[0..0] == '!'
     @options[n] = !ARGV.index(v[1..-1])
   else

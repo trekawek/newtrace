@@ -26,8 +26,13 @@ are in the same subnetwork and that IF1b is on Router1. Because subnets between
 routers are often small (eg. with mask /30 or /29), it's possible to check every
 IP address in given subnetwork. Newtrace is checking these IP sending ICMP
 packets with small TTL (eg. 1 when looking for IF1b). When some IP replies with
-'echo response' then we know that it's the one from Router1 and it's IF1b.
- 
+'echo response' then we know that it's the one from Router1 and it's IF1b. To
+make sure, newtrace also compares IP identification fields in packets from
+IF1a and IF1b - if the difference between identifiers is tiny (below 10) we
+can be convinced that we've found the right IP address. Next similar test is
+comparing the TTL in 'echo response' packets from IF1a and IF1b - they have
+to be equal.
+
 ===   Author    ===
 Tomasz Rekawek
 
