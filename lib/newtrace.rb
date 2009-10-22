@@ -72,7 +72,7 @@ class Newtrace
         res = ICMPPing.ping(i, ttl, @options[:timeout], 1)
         tested << i
         next if res[:type] != :echo_reply
-        next if is_closer_than_n ttl, i
+        next if ttl > 1 and is_closer_than_n ttl, i
         next if @options[:ttl_compare] and !compare_ttl same_router_ip, i
         next if @options[:ident_compare] and !compare_ident same_router_ip, i
         return i
