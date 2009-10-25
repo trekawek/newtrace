@@ -24,7 +24,11 @@ class Ip
   end
 
   def self.from_raw host
-    Ip.new(host.split('').map { |o| o[0].to_s })
+    if !host
+      return Ip.new
+    else
+      return Ip.new(host.split('').map { |o| o[0].to_s })
+    end
   end
 
   def to_raw

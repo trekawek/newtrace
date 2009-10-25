@@ -16,15 +16,9 @@ class << ICMPPing
   ICMP_ECHO = 8
   ICMP_TYPES = {0 => :echo_reply, 3 => :destination_unreachable, 4 => :source_quench, 5 => :redirect_message, 8 => :echo_request, 9 => :router_adv, 10 => :router_solicitation, 11 => :time_exceeded, 12 => :parameter_problem, 13 => :timestamp, 14 => :timestamp_reply, 15 => :infomration_request, 16 => :information_reply, 17 => :address_mask_request, 18 => :address_mask_reply, 30 => :traceroute}
 
-  def ping(host, ttl = 64, timeout = 50, retries = 3, dlen = self::DEF_PACKET_SIZE)
-    return -3 if dlen > self::MAX_PACKET_SIZE
+  def ping(host, ttl = 64, timeout = 5, retries = 3, dlen = self::DEF_PACKET_SIZE)
     dest = host.to_raw
-    begin
-      hp = [Socket::AF_INET, 0, dest, 0, 0]
-    rescue
-      $stderr.printf($!.message + "\n") if $VERBOSE
-      return -1
-    end
+    hp = [Socket::AF_INET, 0, dest, 0, 0]
 
     s = Socket.new(Socket::AF_INET, Socket::SOCK_RAW, IPPROTO_ICMP)
     s.setsockopt(Socket::IPPROTO_IP, Socket::IP_TTL, [ttl].pack('i'))
@@ -36,33 +30,29 @@ class << ICMPPing
     dat = icmph.pack("C2n3Na*")
     cksum = checksum(((dat.length & 1) ? (dat + "\0") : dat).unpack("n*"))
     dat[2], dat[3] = cksum >> 8, cksum & 0xff
-    begin
-      type = nil
-      rhost = nil
-      times = []
-      recv_ttl = nil
-      ident = nil
-      0.upto(retries-1) do
-        _start = Time.now
-        s.send dat, 0, hp.pack("v2a*N2")
-        timeout(timeout / 1000.0) do
+
+    type = nil; rhost = nil; times = []; recv_ttl = nil; ident = nil
+    0.upto(retries-1) do
+      _start = Time.now
+      s.send dat, 0, hp.pack("v2a*N2")
+      begin
+        timeout(timeout) do
           rdat = s.recvfrom(self::MAX_PACKET_SIZE + 500)
           _stop = Time.now
-          rhost = rdat[1].unpack("v2a4")[2]
+          rhost ||= rdat[1].unpack("v2a4")[2]
           icmpdat = rdat[0].slice((rdat[0][0] & 0x0f) * 4..-1)
           resp = icmpdat.unpack("C2n3N")
-          type = resp[0]
+          type ||= resp[0]
           type = ICMP_TYPES[resp[0]] if ICMP_TYPES[resp[0]]
-          ident = rdat[0][4, 2].unpack('n')[0]
-          recv_ttl = rdat[0][8]
+          ident ||= rdat[0][4, 2].unpack('n')[0]
+          recv_ttl ||= rdat[0][8]
           times << (_stop - _start) * 1000
         end
+      rescue Timeout::Error
+        times << nil
       end
-      return :type => type, :host => rhost, :times => times, :ident => ident, :ttl => recv_ttl
-    rescue TimeoutError
-      return {}
     end
-    {}
+    {:type => type, :host => rhost, :times => times, :ident => ident, :ttl => recv_ttl}
   end
 
  private

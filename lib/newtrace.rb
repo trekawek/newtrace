@@ -13,8 +13,7 @@ class Newtrace
   end
 
   def each_router print = false
-    ttl = 1
-    begin
+    1.upto(@options[:max_ttl]) do |ttl|
       pair = find_pair ttl, print
       if pair[:to].empty?
         yield({:ttl => ttl, :first_if => pair[:from], :times => pair[:times]})
@@ -22,8 +21,8 @@ class Newtrace
         yield({:ttl => ttl, :first_if => pair[:from], :second_if => pair[:to], :times => pair[:times]})
       end
       break if pair[0] == @ip
-      ttl += 1
-    end while !pair[:finished]
+      break if pair[:finished]
+    end
   end
 
   def find_pair ttl, print = false
@@ -33,30 +32,31 @@ class Newtrace
     finished = false
     printed = false
     0.upto(3) do
-      if !res or res.length == 0
+      if !res or !res[:host]
         res = ICMPPing.ping(@ip, ttl, @options[:timeout], @options[:retries])
       end
-      next if !res or res.length == 0
+      next if !res[:host]
       if !printed and print
-        print "#{ttl} #{Ip.from_raw(res[:host]).to_s(@options[:resolv])}"
+        print "#{ttl.to_s.rjust(2)}  #{Ip.from_raw(res[:host]).to_s(@options[:resolv])}"
         STDOUT.flush
         printed = true
       end
-      finished = true and break if res[:type] == :echo_reply
+      finished = true and break if res[:type] == :echo_reply or res[:type] == :echo_request # self-traceroute
 
       res2 = ICMPPing.ping(@ip, ttl + 1, @options[:timeout], 1)
-      next if !res2 or res2.length == 0
+      next if !res2[:host]
       break if res2[:type] == :echo_reply # final host
 
       sec_if = find_second_interface(Ip.from_raw(res2[:host]), Ip.from_raw(res[:host]), ttl)
       break
     end
+    print "#{ttl.to_s.rjust(2)}  " if !printed
     pair = {:from => Ip.new, :to => Ip.new, :finished => finished}
     pair[:times] = res[:times] if res
-    pair[:from] = Ip.from_raw(res[:host]) if res.length > 0
+    pair[:from] = Ip.from_raw(res[:host]) if res[:host]
     if sec_if
       pair[:to] = sec_if
-    elsif res2 and res2.length > 0
+    elsif res2 and res2[:host]
       pair[:to] = Ip.from_raw(res2[:host])
     end
     pair
@@ -83,18 +83,20 @@ class Newtrace
 
   def is_closer_than_n n, ip
     res = ICMPPing.ping(ip, n-1, @options[:timeout], 1)
-    res and res[:type] == :echo_reply
+    res[:type] == :echo_reply
   end
 
   def compare_ttl ip1, ip2
     res1 = ICMPPing.ping(ip1, 64, @options[:timeout], 1)
     res2 = ICMPPing.ping(ip2, 64, @options[:timeout], 1)
+    return true if !res1[:ttl] or !res2[:ttl]
     res1[:ttl] == res2[:ttl]
   end
 
   def compare_ident ip1, ip2
     res1 = ICMPPing.ping(ip1, 64, @options[:timeout], 1)
     res2 = ICMPPing.ping(ip2, 64, @options[:timeout], 1)
+    return true if !res1[:ident] or !res2[:ident]
     (res1[:ident] - res2[:ident]).abs < 10
   end
 end
